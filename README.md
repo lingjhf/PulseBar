@@ -55,6 +55,19 @@ Build the app:
 /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild build -project PulseBar.xcodeproj -scheme PulseBar -destination 'platform=macOS,arch=arm64'
 ```
 
+## Release
+
+GitHub Actions builds a release DMG when a plain Semantic Version tag is pushed:
+
+```bash
+git tag 1.0.0
+git push origin 1.0.0
+```
+
+The release workflow builds `PulseBar.app`, packages it into `PulseBar-<tag>.dmg`, writes a SHA-256 checksum, and creates a GitHub Release with both files attached.
+
+The CI build uses ad-hoc signing and does not notarize the app. A downloaded release may still show the normal macOS warning for apps that are not Developer ID signed and notarized.
+
 ## Notes
 
 For a stable `Launch at Login` registration while testing manually, run PulseBar from a stable app path such as `/Applications/PulseBar.app` instead of an Xcode DerivedData path.

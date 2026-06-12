@@ -1,0 +1,108 @@
+name: Release DMG
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release-dmg:
+    name: Build release DMG
+    runs-on: macos-latest
+
+    env:
+      APP_NAME: PulseBar
+      PROJECT_PATH: PulseBar.xcodeproj
+      SCHEME: PulseBar
+      CONFIGURATION: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate tag
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$GITHUB_REF_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use plain SemVer, for example 1.0.0"
+            exit 1
+          fi
+
+      - name: Show Xcode environment
+        run: |
+          set -euo pipefail
+          xcode-select -p
+          xcodebuild -version
+          xcodebuild -showsdks
+
+      - name: Run tests
+        run: |
+          set -euo pipefail
+
+          xcodebuild test \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -destination "platform=macOS,arch=$(uname -m)" \
+            -only-testing:PulseBarTests \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM=""
+
+      - name: Build app
+        run: |
+          set -euo pipefail
+
+          xcodebuild clean build \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM=""
+
+      - name: Create DMG
+        run: |
+          set -euo pipefail
+
+          APP_PATH="build/DerivedData/Build/Products/$CONFIGURATION/$APP_NAME.app"
+          RELEASE_DIR="build/release"
+          DMG_ROOT="build/dmg-root"
+          DMG_PATH="$RELEASE_DIR/$APP_NAME-$GITHUB_REF_NAME.dmg"
+
+          test -d "$APP_PATH"
+          rm -rf "$RELEASE_DIR" "$DMG_ROOT"
+          mkdir -p "$RELEASE_DIR" "$DMG_ROOT"
+
+          cp -R "$APP_PATH" "$DMG_ROOT/"
+          ln -s /Applications "$DMG_ROOT/Applications"
+
+          diskutil image create from \
+            --volumeName "$APP_NAME $GITHUB_REF_NAME" \
+            --format UDZO \
+            "$DMG_ROOT" \
+            "$DMG_PATH"
+
+          shasum -a 256 "$DMG_PATH" | tee "$DMG_PATH.sha256"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          DMG_PATH="build/release/$APP_NAME-$GITHUB_REF_NAME.dmg"
+          CHECKSUM_PATH="$DMG_PATH.sha256"
+
+          gh release create "$GITHUB_REF_NAME" \
+            "$DMG_PATH" \
+            "$CHECKSUM_PATH" \
+            --title "$APP_NAME $GITHUB_REF_NAME" \
+            --notes "Release $GITHUB_REF_NAME"
