@@ -38,7 +38,7 @@ PulseBar samples system metrics roughly once per second.
 
 ## Requirements
 
-- macOS 26.5 or later, matching the current project deployment target.
+- macOS 26.0 or later, matching the current project deployment target.
 - Xcode capable of building the configured macOS SDK.
 
 ## Development
@@ -66,7 +66,7 @@ git push origin 1.0.0
 
 The release workflow builds `PulseBar.app`, packages it into `PulseBar-<tag>.dmg`, writes a SHA-256 checksum, and creates a GitHub Release with both files attached.
 
-The workflow uses the `macos-26` GitHub Actions runner because PulseBar currently targets macOS 26.5.
+The workflow uses the `macos-26` GitHub Actions runner because PulseBar currently targets macOS 26.
 
 The CI build uses ad-hoc signing and does not notarize the app. A downloaded release may still show the normal macOS warning for apps that are not Developer ID signed and notarized.
 
