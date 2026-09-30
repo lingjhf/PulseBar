@@ -1,15 +1,15 @@
 # PulseBar
 
-PulseBar is a lightweight macOS menu bar monitor for CPU, memory, and network activity. It runs as a status bar app without a Dock icon and keeps the menu bar display compact enough for daily use.
+PulseBar is a lightweight macOS menu bar monitor for CPU, memory, network activity, and system thermal state. It runs as a status bar app without a Dock icon and keeps the menu bar display compact enough for daily use.
 
 ## Features
 
-- CPU usage, memory usage, and live upload/download speed.
+- CPU usage, memory usage, live upload/download speed, and system thermal state.
 - Daily upload/download totals, reset by local calendar day.
-- Configurable menu bar fields: CPU, memory, and network can be shown or hidden.
+- Configurable menu bar fields: CPU, memory, network, and thermal state can be shown or hidden.
 - Display formats:
-  - `Standard`: `CPU 12%  MEM 8.0G  ↑117.2K ↓2.0M`
-  - `Compact`: `12%  8.0G  ↑117.2K ↓2.0M`
+  - `Standard`: `CPU 12%  MEM 8.0G  ↑117.2K ↓2.0M  THM OK`
+  - `Compact`: `12%  8.0G  ↑117.2K ↓2.0M  OK`
   - `Network Only`: `↑117.2K ↓2.0M`
 - Fixed-width menu bar title to reduce width changes while network speed updates.
 - `Launch at Login` support through `SMAppService.mainApp`.
@@ -22,17 +22,19 @@ Click the PulseBar item in the macOS menu bar to change what is shown:
 - `Show CPU`
 - `Show Memory`
 - `Show Network`
+- `Show Thermal State`
 - `Launch at Login`
 - `Display Format`
 - `Quit PulseBar`
 
 ## Implementation Notes
 
-PulseBar samples system metrics roughly once per second.
+PulseBar samples system metrics roughly once per second and refreshes immediately when macOS reports a thermal state change.
 
 - CPU is calculated from host processor tick deltas.
 - Memory uses `host_statistics64`, counting internal, wired, and compressed pages as used memory.
 - Network speed uses `getifaddrs` byte counters from active non-loopback interfaces.
+- Thermal state uses the public `ProcessInfo.thermalState` API and displays `OK`, `WARM`, `HOT`, or `CRIT`.
 - Daily network totals are persisted in `UserDefaults` as counter snapshots.
 - Preferences are persisted with `UserDefaults`.
 

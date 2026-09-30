@@ -16,16 +16,21 @@ final class SystemMetricsMonitor: ObservableObject {
     private let sampler: LiveSystemMetricsSampler
     private let interval: TimeInterval
     private var timer: Timer?
+    private var thermalStateObserver: NSObjectProtocol?
 
     init(sampler: LiveSystemMetricsSampler? = nil, interval: TimeInterval = 1) {
         self.sampler = sampler ?? LiveSystemMetricsSampler()
         self.interval = interval
         refresh()
         start()
+        startThermalStateObserver()
     }
 
     deinit {
         timer?.invalidate()
+        if let thermalStateObserver {
+            NotificationCenter.default.removeObserver(thermalStateObserver)
+        }
     }
 
     func refresh() {
@@ -43,6 +48,18 @@ final class SystemMetricsMonitor: ObservableObject {
             }
         }
         timer?.tolerance = interval * 0.1
+    }
+
+    private func startThermalStateObserver() {
+        thermalStateObserver = NotificationCenter.default.addObserver(
+            forName: ProcessInfo.thermalStateDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refresh()
+            }
+        }
     }
 }
 
@@ -87,8 +104,13 @@ final class LiveSystemMetricsSampler {
             downloadBytesPerSecond: networkRates?.downloadBytesPerSecond,
             todayUploadBytes: dailyNetworkUsage?.uploadBytes,
             todayDownloadBytes: dailyNetworkUsage?.downloadBytes,
+            thermalState: readThermalState(),
             sampledAt: sampledAt
         )
+    }
+
+    private func readThermalState() -> SystemThermalState {
+        SystemThermalState(ProcessInfo.processInfo.thermalState)
     }
 
     private func readCPUTicks() -> CPUTicks? {

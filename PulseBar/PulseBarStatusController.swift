@@ -100,6 +100,11 @@ final class PulseBarStatusController: NSObject, NSMenuDelegate {
             isOn: displayOptions.showsNetwork,
             action: #selector(toggleNetwork)
         ))
+        menu.addItem(toggleItem(
+            title: "Show Thermal State",
+            isOn: displayOptions.showsThermalState,
+            action: #selector(toggleThermalState)
+        ))
         menu.addItem(launchAtLoginMenuItem())
         menu.addItem(.separator())
 
@@ -167,6 +172,13 @@ final class PulseBarStatusController: NSObject, NSMenuDelegate {
         setDisplayPreference(!displayOptions.showsNetwork, forKey: MetricDisplayPreferenceKey.showNetwork)
     }
 
+    @objc private func toggleThermalState() {
+        setDisplayPreference(
+            !displayOptions.showsThermalState,
+            forKey: MetricDisplayPreferenceKey.showThermalState
+        )
+    }
+
     @objc private func toggleLaunchAtLogin() {
         do {
             let targetValue = LaunchAtLoginMenuFormatter.targetEnabledValue(
@@ -207,7 +219,11 @@ final class PulseBarStatusController: NSObject, NSMenuDelegate {
         MetricDisplayOptions(
             showsCPU: boolPreference(forKey: MetricDisplayPreferenceKey.showCPU, defaultValue: true),
             showsMemory: boolPreference(forKey: MetricDisplayPreferenceKey.showMemory, defaultValue: true),
-            showsNetwork: boolPreference(forKey: MetricDisplayPreferenceKey.showNetwork, defaultValue: true)
+            showsNetwork: boolPreference(forKey: MetricDisplayPreferenceKey.showNetwork, defaultValue: true),
+            showsThermalState: boolPreference(
+                forKey: MetricDisplayPreferenceKey.showThermalState,
+                defaultValue: true
+            )
         )
     }
 

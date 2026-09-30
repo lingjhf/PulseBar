@@ -299,6 +299,12 @@ struct PulseBarTests {
         ) == "8.0GB / 16.0GB")
         #expect(MetricValueFormatter.percentage(0.124) == "12%")
         #expect(MetricValueFormatter.percentage(nil) == "--")
+        #expect(MetricValueFormatter.thermalState(.nominal) == "OK")
+        #expect(MetricValueFormatter.thermalState(.fair) == "WARM")
+        #expect(MetricValueFormatter.thermalState(.serious) == "HOT")
+        #expect(MetricValueFormatter.thermalState(.critical) == "CRIT")
+        #expect(MetricValueFormatter.thermalState(.unknown) == "--")
+        #expect(MetricValueFormatter.thermalState(nil) == "--")
     }
 
     @Test func menuBarMetricFormattingCoversUnitsAndPlaceholders() {
@@ -306,6 +312,7 @@ struct PulseBarTests {
         #expect(MenuBarMetricFormatter.memoryWidthTemplate == "MEM 999.9G")
         #expect(MenuBarMetricFormatter.uploadWidthTemplate == "↑999.9G")
         #expect(MenuBarMetricFormatter.downloadWidthTemplate == "↓999.9G")
+        #expect(MenuBarMetricFormatter.thermalStateWidthTemplate == "THM WARM")
 
         #expect(MenuBarMetricFormatter.cpu(0.997) == "CPU 100%")
         #expect(MenuBarMetricFormatter.cpu(nil) == "CPU --")
@@ -323,6 +330,16 @@ struct PulseBarTests {
         #expect(MenuBarMetricFormatter.download(2_097_152) == "↓2.0M")
         #expect(MenuBarMetricFormatter.download(1_073_741_824) == "↓1.0G")
         #expect(MenuBarMetricFormatter.download(nil) == "↓--")
+
+        #expect(MenuBarMetricFormatter.thermalState(.nominal) == "THM OK")
+        #expect(MenuBarMetricFormatter.thermalState(.fair) == "THM WARM")
+        #expect(MenuBarMetricFormatter.thermalState(.serious) == "THM HOT")
+        #expect(MenuBarMetricFormatter.thermalState(.critical) == "THM CRIT")
+        #expect(MenuBarMetricFormatter.thermalState(nil) == "THM --")
+        #expect(MenuBarMetricFormatter.fixedThermalState("THM OK") == "THM   OK")
+        #expect(MenuBarCompactMetricFormatter.thermalStateWidthTemplate == "WARM")
+        #expect(MenuBarCompactMetricFormatter.thermalState(.critical) == "CRIT")
+        #expect(MenuBarCompactMetricFormatter.fixedThermalState("OK") == "  OK")
     }
 
     @Test func fixedWidthMenuBarTitleKeepsNetworkCharacterSlotsStable() {
@@ -364,17 +381,61 @@ struct PulseBarTests {
             memoryTotalBytes: 17_179_869_184,
             uploadBytesPerSecond: 120_000,
             downloadBytesPerSecond: 2_100_000,
+            thermalState: .serious,
             sampledAt: Date(timeIntervalSince1970: 0)
         )
 
         let allEnabled = MetricDisplayOptions(showsCPU: true, showsMemory: true, showsNetwork: true)
         let memoryOnly = MetricDisplayOptions(showsCPU: false, showsMemory: true, showsNetwork: false)
+        let thermalOnly = MetricDisplayOptions(
+            showsCPU: false,
+            showsMemory: false,
+            showsNetwork: false,
+            showsThermalState: true
+        )
         let allDisabled = MetricDisplayOptions(showsCPU: false, showsMemory: false, showsNetwork: false)
 
         #expect(MenuBarTitleFormatter.fixedWidthTitle(for: metrics, options: allEnabled).count == MenuBarTitleFormatter.fixedWidthTemplate(for: allEnabled).count)
         #expect(MenuBarTitleFormatter.fixedWidthTitle(for: metrics, options: memoryOnly).count == MenuBarTitleFormatter.fixedWidthTemplate(for: memoryOnly).count)
+        #expect(MenuBarTitleFormatter.fixedWidthTitle(for: metrics, options: thermalOnly) == "THM  HOT")
+        #expect(MenuBarTitleFormatter.fixedWidthTitle(for: metrics, options: thermalOnly).count == MenuBarTitleFormatter.fixedWidthTemplate(for: thermalOnly).count)
         #expect(MenuBarTitleFormatter.fixedWidthTitle(for: metrics, options: allDisabled) == "PulseBar")
         #expect(MenuBarTitleFormatter.fixedWidthTemplate(for: allDisabled) == "PulseBar")
+    }
+
+    @Test func fixedWidthMenuBarTitleKeepsThermalStateCharacterSlotsStable() {
+        let coolMetrics = SystemMetrics(
+            cpuUsage: 0.12,
+            memoryUsedBytes: 8_589_934_592,
+            memoryTotalBytes: 17_179_869_184,
+            uploadBytesPerSecond: 1_024,
+            downloadBytesPerSecond: 1_024,
+            thermalState: .nominal,
+            sampledAt: Date(timeIntervalSince1970: 0)
+        )
+        let warmMetrics = SystemMetrics(
+            cpuUsage: 0.12,
+            memoryUsedBytes: 8_589_934_592,
+            memoryTotalBytes: 17_179_869_184,
+            uploadBytesPerSecond: 123 * 1_024,
+            downloadBytesPerSecond: 123 * 1_024,
+            thermalState: .fair,
+            sampledAt: Date(timeIntervalSince1970: 0)
+        )
+        let options = MetricDisplayOptions(
+            showsCPU: false,
+            showsMemory: false,
+            showsNetwork: false,
+            showsThermalState: true
+        )
+
+        let coolTitle = MenuBarTitleFormatter.fixedWidthTitle(for: coolMetrics, options: options)
+        let warmTitle = MenuBarTitleFormatter.fixedWidthTitle(for: warmMetrics, options: options)
+
+        #expect(coolTitle == "THM   OK")
+        #expect(warmTitle == "THM WARM")
+        #expect(coolTitle.count == warmTitle.count)
+        #expect(coolTitle.count == MenuBarTitleFormatter.fixedWidthTemplate(for: options).count)
     }
 
     @Test func menuBarDisplayModesFormatTitles() {
@@ -426,18 +487,34 @@ struct PulseBarTests {
             memoryTotalBytes: 17_179_869_184,
             uploadBytesPerSecond: 120_000,
             downloadBytesPerSecond: 2_100_000,
+            thermalState: .nominal,
             sampledAt: Date(timeIntervalSince1970: 0)
         )
 
         #expect(MenuBarTitleFormatter.title(
             for: metrics,
-            options: MetricDisplayOptions(showsCPU: true, showsMemory: true, showsNetwork: true)
-        ) == "CPU 12%  MEM 8.0G  ↑117.2K ↓2.0M")
+            options: MetricDisplayOptions(
+                showsCPU: true,
+                showsMemory: true,
+                showsNetwork: true,
+                showsThermalState: true
+            )
+        ) == "CPU 12%  MEM 8.0G  ↑117.2K ↓2.0M  THM OK")
 
         #expect(MenuBarTitleFormatter.title(
             for: metrics,
             options: MetricDisplayOptions(showsCPU: false, showsMemory: true, showsNetwork: false)
         ) == "MEM 8.0G")
+
+        #expect(MenuBarTitleFormatter.title(
+            for: metrics,
+            options: MetricDisplayOptions(
+                showsCPU: false,
+                showsMemory: false,
+                showsNetwork: false,
+                showsThermalState: true
+            )
+        ) == "THM OK")
 
         #expect(MenuBarTitleFormatter.title(
             for: metrics,
@@ -449,6 +526,12 @@ struct PulseBarTests {
         #expect(MetricDisplayOptions(showsCPU: true, showsMemory: false, showsNetwork: false).hasVisibleMetrics)
         #expect(MetricDisplayOptions(showsCPU: false, showsMemory: true, showsNetwork: false).hasVisibleMetrics)
         #expect(MetricDisplayOptions(showsCPU: false, showsMemory: false, showsNetwork: true).hasVisibleMetrics)
+        #expect(MetricDisplayOptions(
+            showsCPU: false,
+            showsMemory: false,
+            showsNetwork: false,
+            showsThermalState: true
+        ).hasVisibleMetrics)
         #expect(!MetricDisplayOptions(showsCPU: false, showsMemory: false, showsNetwork: false).hasVisibleMetrics)
     }
 

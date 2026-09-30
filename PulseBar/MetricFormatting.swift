@@ -25,6 +25,10 @@ enum MenuBarTitleFormatter {
             parts.append("↑\(upload) ↓\(download)")
         }
 
+        if options.showsThermalState {
+            parts.append("THM \(MetricValueFormatter.thermalState(metrics.thermalState))")
+        }
+
         return parts.isEmpty ? "PulseBar" : parts.joined(separator: "  ")
     }
 
@@ -59,6 +63,7 @@ enum MenuBarTitleFormatter {
             memory: MenuBarMetricFormatter.memory(metrics.memoryUsedBytes),
             upload: MenuBarMetricFormatter.upload(metrics.uploadBytesPerSecond),
             download: MenuBarMetricFormatter.download(metrics.downloadBytesPerSecond),
+            thermalState: MenuBarMetricFormatter.thermalState(metrics.thermalState),
             options: options
         )
     }
@@ -69,6 +74,7 @@ enum MenuBarTitleFormatter {
             memory: MenuBarMetricFormatter.memoryWidthTemplate,
             upload: MenuBarMetricFormatter.uploadWidthTemplate,
             download: MenuBarMetricFormatter.downloadWidthTemplate,
+            thermalState: MenuBarMetricFormatter.thermalStateWidthTemplate,
             options: options
         )
     }
@@ -78,6 +84,7 @@ enum MenuBarTitleFormatter {
         memory: String,
         upload: String,
         download: String,
+        thermalState: String,
         options: MetricDisplayOptions
     ) -> String {
         var parts: [String] = []
@@ -97,6 +104,10 @@ enum MenuBarTitleFormatter {
             ].joined(separator: " "))
         }
 
+        if options.showsThermalState {
+            parts.append(MenuBarMetricFormatter.fixedThermalState(thermalState))
+        }
+
         return parts.isEmpty ? "PulseBar" : parts.joined(separator: "  ")
     }
 
@@ -106,6 +117,7 @@ enum MenuBarTitleFormatter {
             memory: MenuBarCompactMetricFormatter.memory(metrics.memoryUsedBytes),
             upload: MenuBarMetricFormatter.upload(metrics.uploadBytesPerSecond),
             download: MenuBarMetricFormatter.download(metrics.downloadBytesPerSecond),
+            thermalState: MenuBarCompactMetricFormatter.thermalState(metrics.thermalState),
             options: options
         )
     }
@@ -116,6 +128,7 @@ enum MenuBarTitleFormatter {
             memory: MenuBarCompactMetricFormatter.memoryWidthTemplate,
             upload: MenuBarMetricFormatter.uploadWidthTemplate,
             download: MenuBarMetricFormatter.downloadWidthTemplate,
+            thermalState: MenuBarCompactMetricFormatter.thermalStateWidthTemplate,
             options: options
         )
     }
@@ -125,6 +138,7 @@ enum MenuBarTitleFormatter {
         memory: String,
         upload: String,
         download: String,
+        thermalState: String,
         options: MetricDisplayOptions
     ) -> String {
         var parts: [String] = []
@@ -142,6 +156,10 @@ enum MenuBarTitleFormatter {
                 MenuBarMetricFormatter.fixedUpload(upload),
                 MenuBarMetricFormatter.fixedDownload(download),
             ].joined(separator: " "))
+        }
+
+        if options.showsThermalState {
+            parts.append(MenuBarCompactMetricFormatter.fixedThermalState(thermalState))
         }
 
         return parts.isEmpty ? "PulseBar" : parts.joined(separator: "  ")
@@ -171,6 +189,7 @@ enum MenuBarMetricFormatter {
     static let memoryWidthTemplate = "MEM 999.9G"
     static let uploadWidthTemplate = "↑999.9G"
     static let downloadWidthTemplate = "↓999.9G"
+    static let thermalStateWidthTemplate = "THM WARM"
 
     static func cpu(_ value: Double?) -> String {
         "CPU \(MetricValueFormatter.percentage(value))"
@@ -186,6 +205,10 @@ enum MenuBarMetricFormatter {
 
     static func download(_ bytesPerSecond: Double?) -> String {
         "↓\(MetricValueFormatter.compactByteRate(bytesPerSecond))"
+    }
+
+    static func thermalState(_ state: SystemThermalState?) -> String {
+        "THM \(MetricValueFormatter.thermalState(state))"
     }
 
     static func fixedCPU(_ text: String) -> String {
@@ -204,6 +227,10 @@ enum MenuBarMetricFormatter {
         leftPadSuffix(in: text, prefix: "↓", template: downloadWidthTemplate)
     }
 
+    static func fixedThermalState(_ text: String) -> String {
+        leftPadSuffix(in: text, prefix: "THM ", template: thermalStateWidthTemplate)
+    }
+
     private static func leftPadSuffix(in text: String, prefix: String, template: String) -> String {
         guard text.hasPrefix(prefix) else {
             return text
@@ -220,6 +247,7 @@ enum MenuBarMetricFormatter {
 enum MenuBarCompactMetricFormatter {
     static let cpuWidthTemplate = "100%"
     static let memoryWidthTemplate = "999.9G"
+    static let thermalStateWidthTemplate = "WARM"
 
     static func cpu(_ value: Double?) -> String {
         MetricValueFormatter.percentage(value)
@@ -229,12 +257,20 @@ enum MenuBarCompactMetricFormatter {
         MetricValueFormatter.compactMemory(bytes)
     }
 
+    static func thermalState(_ state: SystemThermalState?) -> String {
+        MetricValueFormatter.thermalState(state)
+    }
+
     static func fixedCPU(_ text: String) -> String {
         leftPad(text, template: cpuWidthTemplate)
     }
 
     static func fixedMemory(_ text: String) -> String {
         leftPad(text, template: memoryWidthTemplate)
+    }
+
+    static func fixedThermalState(_ text: String) -> String {
+        leftPad(text, template: thermalStateWidthTemplate)
     }
 
     private static func leftPad(_ text: String, template: String) -> String {
@@ -291,6 +327,25 @@ enum MetricValueFormatter {
         }
 
         return scaledBytes(bytesPerSecond, units: ["B", "K", "M", "G", "T"])
+    }
+
+    static func thermalState(_ state: SystemThermalState?) -> String {
+        guard let state else {
+            return "--"
+        }
+
+        switch state {
+        case .nominal:
+            return "OK"
+        case .fair:
+            return "WARM"
+        case .serious:
+            return "HOT"
+        case .critical:
+            return "CRIT"
+        case .unknown:
+            return "--"
+        }
     }
 
     private static func byteAmount(_ bytes: UInt64) -> String {

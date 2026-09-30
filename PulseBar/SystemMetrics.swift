@@ -15,6 +15,7 @@ struct SystemMetrics: Equatable {
     var downloadBytesPerSecond: Double?
     var todayUploadBytes: UInt64? = nil
     var todayDownloadBytes: UInt64? = nil
+    var thermalState: SystemThermalState? = nil
     var sampledAt: Date
 
     static let empty = SystemMetrics(
@@ -25,6 +26,7 @@ struct SystemMetrics: Equatable {
         downloadBytesPerSecond: nil,
         todayUploadBytes: nil,
         todayDownloadBytes: nil,
+        thermalState: nil,
         sampledAt: Date()
     )
 
@@ -36,17 +38,54 @@ struct SystemMetrics: Equatable {
         downloadBytesPerSecond: 2_100_000,
         todayUploadBytes: 1_200_000_000,
         todayDownloadBytes: 8_400_000_000,
+        thermalState: .nominal,
         sampledAt: Date()
     )
+}
+
+enum SystemThermalState: Equatable {
+    case nominal
+    case fair
+    case serious
+    case critical
+    case unknown
+
+    init(_ thermalState: ProcessInfo.ThermalState) {
+        switch thermalState {
+        case .nominal:
+            self = .nominal
+        case .fair:
+            self = .fair
+        case .serious:
+            self = .serious
+        case .critical:
+            self = .critical
+        @unknown default:
+            self = .unknown
+        }
+    }
 }
 
 struct MetricDisplayOptions: Equatable {
     var showsCPU: Bool
     var showsMemory: Bool
     var showsNetwork: Bool
+    var showsThermalState: Bool
+
+    init(
+        showsCPU: Bool,
+        showsMemory: Bool,
+        showsNetwork: Bool,
+        showsThermalState: Bool = false
+    ) {
+        self.showsCPU = showsCPU
+        self.showsMemory = showsMemory
+        self.showsNetwork = showsNetwork
+        self.showsThermalState = showsThermalState
+    }
 
     var hasVisibleMetrics: Bool {
-        showsCPU || showsMemory || showsNetwork
+        showsCPU || showsMemory || showsNetwork || showsThermalState
     }
 }
 
@@ -54,6 +93,7 @@ enum MetricDisplayPreferenceKey {
     static let showCPU = "showCPUInMenuBar"
     static let showMemory = "showMemoryInMenuBar"
     static let showNetwork = "showNetworkInMenuBar"
+    static let showThermalState = "showThermalStateInMenuBar"
     static let displayMode = "menuBarDisplayMode"
 }
 
